@@ -1,0 +1,63 @@
+flowchart LR
+    %% --- Styling Definitions ---
+    classDef darkAgent fill:#111827,stroke:#1f2937,color:#ffffff,rx:5,ry:5,stroke-width:2px;
+    classDef card fill:#e5e7eb,stroke:#9ca3af,color:#000000,rx:5,ry:5;
+    classDef container fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
+    classDef invisible fill:none,stroke:none,color:none;
+
+    %% --- Main Nodes ---
+    
+    %% 1. The Client Agent (Left)
+    MemberAssist["<b>Member Assist Agent</b><br/><br/>Task: Check Eligibility<br/>& Find Providers"]:::darkAgent
+
+    %% 2. The Agent Directory (Center)
+    subgraph Directory ["<b>Agent Directory</b>"]
+        direction TB
+        DirCard1[("<b>Agent Card</b><br/>Claims Agent")]:::darkAgent
+        DirCard2[("<b>Agent Card</b><br/>Provider<br/>Advocate")]:::darkAgent
+    end
+
+    %% 3. The Remote Agents (Right)
+    %% Claims Agent Node
+    subgraph ClaimsContext [ ]
+        style ClaimsContext fill:none,stroke:none
+        ClaimsAgent["<b>Claims Agent</b>"]:::darkAgent
+        ClaimsCard["📄 Agent Card<br/>(Skills: Eligibility,<br/>History)"]:::card
+        ClaimsAgent --- ClaimsCard
+        linkStyle 0 stroke-width:0px; %% Hides link between agent and card to look like one unit
+    end
+
+    %% Provider Advocate Node
+    subgraph ProviderContext [ ]
+        style ProviderContext fill:none,stroke:none
+        ProviderAgent["<b>Provider Advocate</b>"]:::darkAgent
+        ProviderCard["📄 Agent Card<br/>(Skills: Networks,<br/>Locations)"]:::card
+        ProviderAgent --- ProviderCard
+        linkStyle 1 stroke-width:0px; 
+    end
+
+    %% --- Connections and Data Flow ---
+
+    %% Client looking up directory
+    MemberAssist ==> Directory
+
+    %% Top Loop: Client to Claims Agent
+    MemberAssist -- "A2A Message:<br/>Check Eligibility" --> ClaimsAgent
+    ClaimsAgent -- "Stream Results" --> MemberAssist
+
+    %% Bottom Loop: Client to Provider Advocate
+    MemberAssist -- "A2A Message:<br/>Find In-Network Providers" --> ProviderAgent
+    ProviderAgent -- "Stream Results" --> MemberAssist
+
+    %% --- Footer / Legend Explanation ---
+    %% Using a subgraph to act as the text footer
+    subgraph Footer ["How It Enables Teamwork"]
+        direction TB
+        Text1["<b>Discovery:</b> Agents advertise skills using 'Agent Card'."]:::invisible
+        Text2["<b>Standardized Messaging:</b> A2A acts as a universal translator."]:::invisible
+        Text3["<b>Task Coordination:</b> Coordinator delegates sub-tasks and gets structured results."]:::invisible
+    end
+
+    %% Force layout positioning
+    Directory ~~~ Footer
+    style Directory fill:#f9fafb,stroke:#374151

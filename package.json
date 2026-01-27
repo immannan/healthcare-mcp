@@ -1,0 +1,15 @@
+{
+  "name": "sample-mcp-inspector",
+  "private": true,
+  "version": "0.0.0",
+  "scripts": {
+    "start": "mcp-inspector",
+    "inspector": "mcp-inspector"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/inspector": "^0.19.0"
+  },
+  "overrides": {
+    "diff": "4.0.2"
+  }
+}
