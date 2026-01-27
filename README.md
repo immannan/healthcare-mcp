@@ -39,7 +39,7 @@ http://127.0.0.1:8000/mcp
 You can override it via `FASTMCP_STREAMABLE_HTTP_PATH`.
 
 ```bash
-export FASTMCP_STREAMABLE_HTTP_PATH=/claims-mcp
+export FASTMCP_STREAMABLE_HTTP_PATH=/mcp
 ```
 
 ## Tools
@@ -60,39 +60,6 @@ Install and run via npm scripts:
 ```bash
 npm install
 npm start
-```
-
-Run the Inspector in the foreground (graceful stop with Ctrl+C):
-
-```bash
-npx @modelcontextprotocol/inspector
-```
-
-If your org blocks new npm versions, install in a temp folder with an override:
-
-```bash
-mkdir -p /tmp/mcp-inspector
-cat <<'JSON' > /tmp/mcp-inspector/package.json
-{
-  "name": "mcp-inspector-wrapper",
-  "private": true,
-  "version": "0.0.0",
-  "dependencies": {
-    "@modelcontextprotocol/inspector": "0.17.0"
-  },
-  "overrides": {
-    "diff": "4.0.2"
-  }
-}
-JSON
-(cd /tmp/mcp-inspector && npm install)
-(cd /tmp/mcp-inspector && npx @modelcontextprotocol/inspector)
-```
-
-Stop a background Inspector process:
-
-```bash
-pkill -f "@modelcontextprotocol/inspector"
 ```
 
 ## Notes
