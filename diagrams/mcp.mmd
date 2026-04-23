@@ -1,48 +1,64 @@
-graph LR
+flowchart LR
+  User["User<br/><small>Healthcare member</small>"]:::user
 
-    subgraph "<b>MCP Gateway</b>"
-        direction TB
-        Gateway["<b>Authentication</b>
-        <b>Authorization</b>
-        <b>Observability</b>
-        <b>Tool Scanning</b><br/>IP Restriction"]
-    end
+  subgraph Agent["AI Agent"]
+    direction TB
+    Orch["LLM (Model)<br/><small>Selects tools</small>"]:::srv
+  end
 
-    subgraph "<b>MCP Servers</b>"
-        direction TB
-        Server1["Eligibility<br>MCP Server"]
-        Server2["Benefit Check<br>MCP Server"]
-        Server3["Claims Inquiry<br>MCP Server"]
-        Server4["Payments<br> MCP Server"]
-    end
+  subgraph Client["MCP Client"]
+    direction TB
+    Transport["JSON-RPC<br/>transport"]:::srv
+  end
 
-    subgraph "<b>Tools & Resources</b>"
-        direction TB
-        Tool1["fa:fa-clipboard-list Eligibility Database/API"]
-        Tool5["fa:fa-clipboard-list Eligibility API"]
-        Tool2["fa:fa-file-invoice-dollar Benefit Plan API"]
-        Tool3["fa:fa-handshake Claims History Database"]
-        Tool4["fa:fa-credit-card Payments Gateway"]
-    end
+  subgraph GW["MCP Gateway"]
+    direction TB
+    Auth["Authn / Authz"]:::gw
+    Obs["Observability"]:::gw
+    Scan["Tool scanning"]:::gw
+    IP["IP restriction"]:::gw
+  end
 
-    Gateway --> Server1
-    Gateway --> Server2
-    Gateway --> Server3
-    Gateway --> Server4
+  subgraph Servers["MCP Servers"]
+    direction TB
+    S1["Eligibility<br/>MCP Server"]:::srv
+    S2["Benefit Check<br/>MCP Server"]:::srv
+    S3["Claims Inquiry<br/>MCP Server"]:::srv
+    S4["Payments<br/>MCP Server"]:::srv
+  end
 
-    Server1 --> Tool1
-    Server1 --> Tool5
-    Server2 --> Tool2
-    Server3 --> Tool3
-    Server4 --> Tool4
+  subgraph Tools["Tools & Resources"]
+    direction TB
+    T1["Eligibility DB / API"]:::tool
+    T2["Benefit Plan API"]:::tool
+    T3["Claims History DB"]:::tool
+    T4["Payments Gateway"]:::tool
+  end
 
-    %% Styling
-    classDef agentStyle fill:#0F2540,color:#fff,stroke-width:0px,rx:8,ry:8,font-weight:bold
-    classDef gatewayStyle fill:#e6e6e6,color:#000,stroke-width:2px,stroke:#0F2540,font-weight:bold,rx:8,ry:8
-    classDef serverStyle fill:#0F2540,color:#fff,stroke-width:0px,rx:8,ry:8
-    classDef toolStyle fill:#e6e6e6,color:#000,stroke-width:0px,rx:8,ry:8
+  User -- "natural language" --> Orch
+  Orch -- "StreamableHTTP POST" --> Transport
+  Transport -- "StreamableHTTP POST" --> Auth
+  Auth --> Obs --> Scan --> IP
 
-    class Agent1,Agent2,Agent3 agentStyle;
-    class Gateway gatewayStyle;
-    class Server1,Server2,Server3,Server4 serverStyle;
-    class Tool1,Tool2,Tool3,Tool4,Tool5 toolStyle;
+  IP -- "POST /tools/call" --> S1
+  IP -- "POST /tools/call" --> S2
+  IP -- "POST /tools/call" --> S3
+  IP -- "POST /tools/call" --> S4
+
+  S1 -- "query" --> T1
+  S2 -- "query" --> T2
+  S3 -- "query" --> T3
+  S4 -- "query" --> T4
+
+  T1 -- "result" --> S1
+  T2 -- "result" --> S2
+  T3 -- "result" --> S3
+  T4 -- "result" --> S4
+
+  Transport -- "200 OK / response" --> Orch
+  Orch -- "answer" --> User
+
+  classDef user fill:#e6f1fb,color:#0c447c,stroke:#185fa5,stroke-width:1px
+  classDef gw   fill:#f1efe8,color:#2c2c2a,stroke:#5f5e5a,stroke-width:1px
+  classDef srv  fill:#0F2540,color:#ffffff,stroke:#1a4060,stroke-width:1px
+  classDef tool fill:#e1f5ee,color:#085041,stroke:#0f6e56,stroke-width:1px

@@ -1,63 +1,92 @@
-flowchart LR
+flowchart TB
     %% --- Styling Definitions ---
-    classDef darkAgent fill:#111827,stroke:#1f2937,color:#ffffff,rx:5,ry:5,stroke-width:2px;
-    classDef card fill:#e5e7eb,stroke:#9ca3af,color:#000000,rx:5,ry:5;
-    classDef container fill:#ffffff,stroke:#000000,stroke-width:2px,color:#000000;
-    classDef invisible fill:none,stroke:none,color:none;
+    classDef agent fill:#1e40af,stroke:#1e3a8a,color:#ffffff,rx:8,ry:8,stroke-width:2px;
+    classDef agentCoordinator fill:#059669,stroke:#047857,color:#ffffff,rx:8,ry:8,stroke-width:2px;
+    classDef mcpServer fill:#7c3aed,stroke:#6d28d9,color:#ffffff,rx:8,ry:8,stroke-width:2px;
+    classDef tool fill:#dc2626,stroke:#b91c1c,color:#ffffff,rx:5,ry:5,stroke-width:1px;
+    classDef protocol fill:#f59e0b,stroke:#d97706,color:#ffffff,rx:5,ry:5,stroke-width:2px;
+    classDef directory fill:#f3f4f6,stroke:#6b7280,color:#000000,rx:8,ry:8,stroke-width:2px;
+    classDef explanation fill:none,stroke:none,color:#000000;
 
-    %% --- Main Nodes ---
+    %% --- Healthcare Domain Agents ---
+    MA["<b>🩺 Member Assist Agent</b><br/>Role: Patient Coordinator<br/>Tasks: Eligibility checks,<br/>Provider recommendations"]:::agent
+
+    CA["<b>💳 Claims Agent</b><br/>Role: Claims Processor<br/>Tasks: Claim review,<br/>Status tracking"]:::agent
+
+    PA["<b>🏥 Provider Advocate Agent</b><br/>Role: Provider Network Manager<br/>Tasks: Network lookup,<br/>Location search"]:::agent
+
+    BA["<b>💰 Benefits Agent</b><br/>Role: Benefits Specialist<br/>Tasks: Coverage details,<br/>Cost estimation"]:::agent
+
+    %% --- Coordinator Agent ---
+    Coordinator["<b>🎯 Coordinator Agent</b><br/>Role: Task Orchestrator<br/>Discovery &amp; Delegation"]:::agentCoordinator
+
+    %% --- Agent Directory/Registry ---
+    Directory["<b>📋 Agent Directory/Registry</b><br/>(Agent Capabilities &amp; Metadata)"]:::directory
+
+    %% --- MCP Server ---
+    subgraph MCPServer ["<b>🔧 MCP Health Claims Server</b>"]
+        direction LR
+        Tool1["📊 list_member_claims"]:::tool
+        Tool2["📄 get_claim_detail"]:::tool
+        Tool3["🛡️ get_member_benefits"]:::tool
+        Tool4["💵 estimate_responsibility"]:::tool
+        Tool5["🔍 search_providers"]:::tool
+        Tool6["📍 get_provider_details"]:::tool
+    end
+
+    %% --- A2A Protocol Message Flows ---
+    subgraph Protocol ["<b>🔄 A2A Protocol Communication</b>"]
+        direction LR
+        P1["Request Message<br/>(JSON-RPC 2.0)"]:::protocol
+        P2["Agent Routing<br/>(via Directory)"]:::protocol
+        P3["Response Stream<br/>(Async Results)"]:::protocol
+    end
+
+    %% --- Connections ---
     
-    %% 1. The Client Agent (Left)
-    MemberAssist["<b>Member Assist Agent</b><br/><br/>Task: Check Eligibility<br/>& Find Providers"]:::darkAgent
+    %% All agents discover through directory
+    MA --> Directory
+    CA --> Directory
+    PA --> Directory
+    BA --> Directory
+    Coordinator --> Directory
 
-    %% 2. The Agent Directory (Center)
-    subgraph Directory ["<b>Agent Directory</b>"]
-        direction TB
-        DirCard1[("<b>Agent Card</b><br/>Claims Agent")]:::darkAgent
-        DirCard2[("<b>Agent Card</b><br/>Provider<br/>Advocate")]:::darkAgent
-    end
+    %% All agents can access MCP Server tools
+    MA -.->|Call Tools| MCPServer
+    CA -.->|Call Tools| MCPServer
+    PA -.->|Call Tools| MCPServer
+    BA -.->|Call Tools| MCPServer
 
-    %% 3. The Remote Agents (Right)
-    %% Claims Agent Node
-    subgraph ClaimsContext [ ]
-        style ClaimsContext fill:none,stroke:none
-        ClaimsAgent["<b>Claims Agent</b>"]:::darkAgent
-        ClaimsCard["📄 Agent Card<br/>(Skills: Eligibility,<br/>History)"]:::card
-        ClaimsAgent --- ClaimsCard
-        linkStyle 0 stroke-width:0px; %% Hides link between agent and card to look like one unit
-    end
+    %% Coordinator orchestrates agent-to-agent communication
+    Coordinator -->|A2A Discovery| MA
+    Coordinator -->|A2A Discovery| CA
+    Coordinator -->|A2A Discovery| PA
+    Coordinator -->|A2A Discovery| BA
 
-    %% Provider Advocate Node
-    subgraph ProviderContext [ ]
-        style ProviderContext fill:none,stroke:none
-        ProviderAgent["<b>Provider Advocate</b>"]:::darkAgent
-        ProviderCard["📄 Agent Card<br/>(Skills: Networks,<br/>Locations)"]:::card
-        ProviderAgent --- ProviderCard
-        linkStyle 1 stroke-width:0px; 
-    end
+    %% Agent-to-Agent Communication Examples
+    MA -->|"A2A Request: Check Eligibility<br/>(JSON-RPC)"| CA
+    CA -->|"A2A Response: Eligibility<br/>+ Claims History"| MA
 
-    %% --- Connections and Data Flow ---
+    MA -->|"A2A Request: Find Network<br/>Providers"| PA
+    PA -->|"A2A Response: Provider<br/>List + Details"| MA
 
-    %% Client looking up directory
-    MemberAssist ==> Directory
+    CA -->|"A2A Request: Estimate Costs"| BA
+    BA -->|"A2A Response: Cost<br/>Breakdown"| CA
 
-    %% Top Loop: Client to Claims Agent
-    MemberAssist -- "A2A Message:<br/>Check Eligibility" --> ClaimsAgent
-    ClaimsAgent -- "Stream Results" --> MemberAssist
+    %% Protocol layer
+    MA -.->|Uses| Protocol
+    CA -.->|Uses| Protocol
+    PA -.->|Uses| Protocol
+    BA -.->|Uses| Protocol
 
-    %% Bottom Loop: Client to Provider Advocate
-    MemberAssist -- "A2A Message:<br/>Find In-Network Providers" --> ProviderAgent
-    ProviderAgent -- "Stream Results" --> MemberAssist
+    %% --- Legend/Explanation ---
+    Legend1["<b>Key Components:</b>"]:::explanation
+    Legend2["• <b>Agents:</b> Blue boxes - Domain-specific agents with specialized roles"]:::explanation
+    Legend3["• <b>A2A Protocol:</b> Orange - JSON-RPC 2.0 based asynchronous messaging"]:::explanation
+    Legend4["• <b>MCP Server:</b> Purple - Unified tool access for all agents"]:::explanation
+    Legend5["• <b>Solid Arrows:</b> A2A messages between agents"]:::explanation
+    Legend6["• <b>Dotted Arrows:</b> Tool invocation on shared MCP server"]:::explanation
 
-    %% --- Footer / Legend Explanation ---
-    %% Using a subgraph to act as the text footer
-    subgraph Footer ["How It Enables Teamwork"]
-        direction TB
-        Text1["<b>Discovery:</b> Agents advertise skills using 'Agent Card'."]:::invisible
-        Text2["<b>Standardized Messaging:</b> A2A acts as a universal translator."]:::invisible
-        Text3["<b>Task Coordination:</b> Coordinator delegates sub-tasks and gets structured results."]:::invisible
-    end
-
-    %% Force layout positioning
-    Directory ~~~ Footer
-    style Directory fill:#f9fafb,stroke:#374151
+    style MCPServer fill:#7c3aed,stroke:#6d28d9,color:#ffffff,stroke-width:2px
+    style Protocol fill:#fef3c7,stroke:#f59e0b,color:#000000,stroke-width:2px
+    style Directory fill:#f3f4f6,stroke:#6b7280,color:#000000,stroke-width:2px
