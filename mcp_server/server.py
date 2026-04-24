@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime
+from datetime import datetime, timezone
 import os
 import uuid
 
@@ -374,7 +374,7 @@ def submit_claim_inquiry(claim_id: str, inquiry_type: str, note: str) -> dict:
         "claim_id": claim_id,
         "inquiry_type": inquiry_type,
         "note": note,
-        "submitted_at": datetime.utcnow().isoformat(timespec="seconds") + "Z",
+        "submitted_at": datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"),
         "status": "open",
     }
     INQUIRIES.append(record)

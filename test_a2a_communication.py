@@ -24,7 +24,17 @@ from a2a import (
     ClaimsAgent,
     ProviderAdvocateAgent,
     BenefitsAgent,
+    Task,
+    TaskState,
+    TaskStatus,
+    TaskMessage,
+    TaskManager,
+    TextPart,
+    DataPart,
+    FilePart,
+    Artifact,
 )
+from a2a.task import _part_from_dict
 
 
 # ============================================================================
@@ -260,10 +270,10 @@ class TestAgentRegistry:
         registry = AgentRegistry()
         
         cap1 = AgentCapability(
+            id="check-status",
             name="Check Status",
             method="check_status",
             description="Check status",
-            parameters={},
             tags=["status"],
         )
         
@@ -389,10 +399,10 @@ class TestA2AProtocol:
         protocol = A2AProtocol()
         
         capability = AgentCapability(
+            id="test-capability",
             name="Test",
             method="test",
             description="Test capability",
-            parameters={},
         )
         
         agent_info = AgentInfo(
@@ -778,6 +788,302 @@ class TestA2AErrorHandling:
         })
         
         assert "error" in result
+
+
+# ============================================================================
+# Task Layer Tests
+# ============================================================================
+
+class TestTaskState:
+    def test_enum_values(self):
+        assert TaskState.SUBMITTED.value == "submitted"
+        assert TaskState.WORKING.value == "working"
+        assert TaskState.INPUT_REQUIRED.value == "input-required"
+        assert TaskState.COMPLETED.value == "completed"
+        assert TaskState.FAILED.value == "failed"
+        assert TaskState.CANCELLED.value == "cancelled"
+
+    def test_is_terminal_true(self):
+        assert TaskState.COMPLETED.is_terminal
+        assert TaskState.FAILED.is_terminal
+        assert TaskState.CANCELLED.is_terminal
+
+    def test_is_terminal_false(self):
+        assert not TaskState.SUBMITTED.is_terminal
+        assert not TaskState.WORKING.is_terminal
+        assert not TaskState.INPUT_REQUIRED.is_terminal
+
+
+class TestTaskParts:
+    def test_text_part_to_dict(self):
+        part = TextPart(text="hello")
+        d = part.to_dict()
+        assert d == {"type": "text", "text": "hello"}
+
+    def test_data_part_to_dict(self):
+        part = DataPart(data={"member_id": "M-1001"})
+        d = part.to_dict()
+        assert d == {"type": "data", "data": {"member_id": "M-1001"}}
+
+    def test_file_part_to_dict_with_uri(self):
+        part = FilePart(mime_type="application/pdf", uri="s3://bucket/file.pdf")
+        d = part.to_dict()
+        assert d["type"] == "file"
+        assert d["mimeType"] == "application/pdf"
+        assert d["uri"] == "s3://bucket/file.pdf"
+
+    def test_file_part_to_dict_without_uri(self):
+        part = FilePart()
+        d = part.to_dict()
+        assert "uri" not in d
+
+    def test_part_from_dict_text(self):
+        part = _part_from_dict({"type": "text", "text": "hello"})
+        assert isinstance(part, TextPart)
+        assert part.text == "hello"
+
+    def test_part_from_dict_data(self):
+        part = _part_from_dict({"type": "data", "data": {"x": 1}})
+        assert isinstance(part, DataPart)
+        assert part.data == {"x": 1}
+
+    def test_part_from_dict_file(self):
+        part = _part_from_dict({"type": "file", "mimeType": "image/png", "uri": "http://example.com/img.png"})
+        assert isinstance(part, FilePart)
+        assert part.uri == "http://example.com/img.png"
+
+    def test_part_from_dict_defaults_to_text(self):
+        part = _part_from_dict({"text": "fallback"})
+        assert isinstance(part, TextPart)
+
+
+class TestTaskMessage:
+    def test_creation(self):
+        msg = TaskMessage(role="user", parts=[TextPart(text="hi")])
+        assert msg.role == "user"
+        assert len(msg.parts) == 1
+
+    def test_to_dict(self):
+        msg = TaskMessage(role="agent", parts=[DataPart(data={"k": "v"})])
+        d = msg.to_dict()
+        assert d["role"] == "agent"
+        assert d["parts"][0]["type"] == "data"
+
+    def test_classmethods(self):
+        u = TaskMessage.user_text("check M-1001")
+        assert u.role == "user"
+        assert isinstance(u.parts[0], TextPart)
+
+        a = TaskMessage.agent_text("done")
+        assert a.role == "agent"
+        assert isinstance(a.parts[0], TextPart)
+
+        ad = TaskMessage.agent_data({"result": 42})
+        assert ad.role == "agent"
+        assert isinstance(ad.parts[0], DataPart)
+        assert ad.parts[0].data["result"] == 42
+
+    def test_from_dict_round_trip(self):
+        original = TaskMessage(role="user", parts=[TextPart(text="test"), DataPart(data={"n": 1})])
+        restored = TaskMessage.from_dict(original.to_dict())
+        assert restored.role == "user"
+        assert len(restored.parts) == 2
+        assert isinstance(restored.parts[0], TextPart)
+        assert isinstance(restored.parts[1], DataPart)
+
+
+class TestArtifact:
+    def test_creation(self):
+        art = Artifact(name="eligibility_result", parts=[DataPart(data={"eligible": True})])
+        assert art.name == "eligibility_result"
+        assert art.index == 0
+
+    def test_to_dict(self):
+        art = Artifact(name="result", description="check output", parts=[TextPart(text="ok")])
+        d = art.to_dict()
+        assert d["name"] == "result"
+        assert d["description"] == "check output"
+        assert d["parts"][0]["type"] == "text"
+
+
+class TestTask:
+    def test_creation_defaults(self):
+        task = Task()
+        assert task.id is not None
+        assert task.status.state == TaskState.SUBMITTED
+        assert task.messages == []
+        assert task.artifacts == []
+
+    def test_to_dict_structure(self):
+        task = Task(id="task-001")
+        d = task.to_dict()
+        assert d["id"] == "task-001"
+        assert d["status"]["state"] == "submitted"
+        assert d["messages"] == []
+        assert d["artifacts"] == []
+        assert "sessionId" not in d
+
+    def test_session_id_included_when_set(self):
+        task = Task(id="task-002", session_id="sess-99")
+        d = task.to_dict()
+        assert d["sessionId"] == "sess-99"
+
+
+class TestTaskManager:
+    def test_create_stores_task(self):
+        mgr = TaskManager()
+        task = mgr.create()
+        assert task.status.state == TaskState.SUBMITTED
+        assert mgr.get(task.id) is task
+
+    def test_get_nonexistent_returns_none(self):
+        mgr = TaskManager()
+        assert mgr.get("does-not-exist") is None
+
+    def test_update_state(self):
+        mgr = TaskManager()
+        task = mgr.create()
+        mgr.update_state(task.id, TaskState.WORKING)
+        assert task.status.state == TaskState.WORKING
+
+    def test_cancel_active_task(self):
+        mgr = TaskManager()
+        task = mgr.create()
+        mgr.cancel(task.id)
+        assert task.status.state == TaskState.CANCELLED
+
+    def test_cancel_terminal_task_is_noop(self):
+        mgr = TaskManager()
+        task = mgr.create()
+        mgr.update_state(task.id, TaskState.COMPLETED)
+        mgr.cancel(task.id)
+        assert task.status.state == TaskState.COMPLETED
+
+    def test_add_message_and_artifact(self):
+        mgr = TaskManager()
+        task = mgr.create()
+        mgr.add_message(task.id, TaskMessage.user_text("hello"))
+        mgr.add_artifact(task.id, Artifact(name="out", parts=[TextPart(text="done")]))
+        assert len(task.messages) == 1
+        assert len(task.artifacts) == 1
+
+    def test_list_all(self):
+        mgr = TaskManager()
+        mgr.create()
+        mgr.create()
+        assert len(mgr.list_all()) == 2
+
+
+class TestA2AProtocolTasks:
+    @pytest.mark.asyncio
+    async def test_tasks_send_success(self):
+        protocol = A2AProtocol()
+
+        async def handler(params):
+            return {"member_id": params.get("member_id"), "eligible": True}
+
+        protocol.register_handler("check_member_eligibility", handler)
+
+        message = A2AMessage(
+            method="tasks/send",
+            params={
+                "id": "task-send-001",
+                "skill": "check_member_eligibility",
+                "message": {
+                    "role": "user",
+                    "parts": [{"type": "data", "data": {"member_id": "M-1001"}}],
+                },
+            },
+            sender="test-client",
+            recipient="claims-agent",
+            message_type=MessageType.REQUEST,
+        )
+        response = await protocol.handle_message(message)
+
+        assert response is not None
+        assert response.message_type == MessageType.RESPONSE
+        task_dict = response.result
+        assert task_dict["id"] == "task-send-001"
+        assert task_dict["status"]["state"] == "completed"
+        assert len(task_dict["artifacts"]) == 1
+        assert task_dict["artifacts"][0]["parts"][0]["data"]["eligible"] is True
+
+    @pytest.mark.asyncio
+    async def test_tasks_send_unknown_skill(self):
+        protocol = A2AProtocol()
+
+        message = A2AMessage(
+            method="tasks/send",
+            params={"id": "task-fail-001", "skill": "nonexistent_skill"},
+            sender="client",
+            recipient="agent",
+            message_type=MessageType.REQUEST,
+        )
+        response = await protocol.handle_message(message)
+
+        assert response.message_type == MessageType.ERROR
+        # Task should be stored and marked failed
+        task = protocol.tasks.get("task-fail-001")
+        assert task is not None
+        assert task.status.state == TaskState.FAILED
+
+    @pytest.mark.asyncio
+    async def test_tasks_get_found(self):
+        protocol = A2AProtocol()
+        protocol.register_handler("ping", lambda p: {"pong": True})
+
+        # Create task via tasks/send
+        send_msg = A2AMessage(
+            method="tasks/send",
+            params={"id": "task-get-001", "skill": "ping"},
+            sender="client", recipient="agent",
+            message_type=MessageType.REQUEST,
+        )
+        await protocol.handle_message(send_msg)
+
+        # Retrieve via tasks/get
+        get_msg = A2AMessage(
+            method="tasks/get",
+            params={"id": "task-get-001"},
+            sender="client", recipient="agent",
+            message_type=MessageType.REQUEST,
+        )
+        response = await protocol.handle_message(get_msg)
+
+        assert response.message_type == MessageType.RESPONSE
+        assert response.result["id"] == "task-get-001"
+        assert response.result["status"]["state"] == "completed"
+
+    @pytest.mark.asyncio
+    async def test_tasks_get_not_found(self):
+        protocol = A2AProtocol()
+        message = A2AMessage(
+            method="tasks/get",
+            params={"id": "does-not-exist"},
+            sender="client", recipient="agent",
+            message_type=MessageType.REQUEST,
+        )
+        response = await protocol.handle_message(message)
+        assert response.message_type == MessageType.ERROR
+        assert response.error["code"] == -32001
+
+    @pytest.mark.asyncio
+    async def test_tasks_cancel(self):
+        protocol = A2AProtocol()
+        # Create a task directly in the manager (simulates a long-running task)
+        task = protocol.tasks.create(task_id="task-cancel-001")
+
+        cancel_msg = A2AMessage(
+            method="tasks/cancel",
+            params={"id": "task-cancel-001"},
+            sender="client", recipient="agent",
+            message_type=MessageType.REQUEST,
+        )
+        response = await protocol.handle_message(cancel_msg)
+
+        assert response.message_type == MessageType.RESPONSE
+        assert response.result["status"]["state"] == "cancelled"
+        assert task.status.state == TaskState.CANCELLED
 
 
 if __name__ == "__main__":

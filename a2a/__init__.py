@@ -6,7 +6,12 @@ communicate asynchronously, and coordinate tasks using JSON-RPC 2.0 messages.
 """
 
 from .message import A2AMessage, A2ARequest, A2AResponse, A2AError, MessageType
-from .a2a_protocol import A2AProtocol, AgentRegistry, AgentInfo, AgentCapability
+from .a2a_protocol import A2AProtocol, AgentRegistry, AgentInfo, AgentCapability, AgentCard, Skill
+from .task import (
+    Task, TaskState, TaskStatus,
+    TaskMessage, TaskManager,
+    TextPart, DataPart, FilePart, Artifact,
+)
 from .agents import (
     HealthcareAgentBase,
     MemberAssistAgent,
@@ -27,6 +32,18 @@ __all__ = [
     "AgentRegistry",
     "AgentInfo",
     "AgentCapability",
+    "AgentCard",
+    "Skill",
+    # Tasks
+    "Task",
+    "TaskState",
+    "TaskStatus",
+    "TaskMessage",
+    "TaskManager",
+    "TextPart",
+    "DataPart",
+    "FilePart",
+    "Artifact",
     # Agents
     "HealthcareAgentBase",
     "MemberAssistAgent",

@@ -1,92 +1,45 @@
-flowchart TB
-    %% --- Styling Definitions ---
-    classDef agent fill:#1e40af,stroke:#1e3a8a,color:#ffffff,rx:8,ry:8,stroke-width:2px;
-    classDef agentCoordinator fill:#059669,stroke:#047857,color:#ffffff,rx:8,ry:8,stroke-width:2px;
-    classDef mcpServer fill:#7c3aed,stroke:#6d28d9,color:#ffffff,rx:8,ry:8,stroke-width:2px;
-    classDef tool fill:#dc2626,stroke:#b91c1c,color:#ffffff,rx:5,ry:5,stroke-width:1px;
-    classDef protocol fill:#f59e0b,stroke:#d97706,color:#ffffff,rx:5,ry:5,stroke-width:2px;
-    classDef directory fill:#f3f4f6,stroke:#6b7280,color:#000000,rx:8,ry:8,stroke-width:2px;
-    classDef explanation fill:none,stroke:none,color:#000000;
+flowchart LR
 
-    %% --- Healthcare Domain Agents ---
-    MA["<b>🩺 Member Assist Agent</b><br/>Role: Patient Coordinator<br/>Tasks: Eligibility checks,<br/>Provider recommendations"]:::agent
+  subgraph Coord ["Coordinator"]
+    MA["Member Assist Agent<br/><small>Patient coordinator<br/>Eligibility · Provider search</small>"]:::srv
+  end
 
-    CA["<b>💳 Claims Agent</b><br/>Role: Claims Processor<br/>Tasks: Claim review,<br/>Status tracking"]:::agent
+  subgraph Protocol ["A2A Protocol"]
+    direction TB
+    ROUTER["Message Router<br/><small>JSON-RPC 2.0 · async/await</small>"]:::gw
+    REG["Agent Registry<br/><small>Service discovery · Capabilities</small>"]:::gw
+  end
 
-    PA["<b>🏥 Provider Advocate Agent</b><br/>Role: Provider Network Manager<br/>Tasks: Network lookup,<br/>Location search"]:::agent
+  subgraph Agents ["Specialist Agents"]
+    direction TB
+    CA["Claims Agent<br/><small>check_member_eligibility<br/>get_claim_details</small>"]:::srv
+    PA["Provider Advocate<br/><small>search_network_providers</small>"]:::srv
+    BA["Benefits Agent<br/><small>calculate_member_responsibility</small>"]:::srv
+  end
 
-    BA["<b>💰 Benefits Agent</b><br/>Role: Benefits Specialist<br/>Tasks: Coverage details,<br/>Cost estimation"]:::agent
+  subgraph Tools ["MCP Tools"]
+    direction TB
+    T1["list_member_claims<br/>get_member_benefits<br/>get_claim_detail"]:::tool
+    T2["search_providers"]:::tool
+    T3["estimate_member_responsibility"]:::tool
+  end
 
-    %% --- Coordinator Agent ---
-    Coordinator["<b>🎯 Coordinator Agent</b><br/>Role: Task Orchestrator<br/>Discovery &amp; Delegation"]:::agentCoordinator
+  MA   -- "send_request"                    --> ROUTER
+  ROUTER                                    --> REG
+  ROUTER -- "check_member_eligibility"      --> CA
+  ROUTER -- "search_network_providers"      --> PA
+  CA     -- "calculate_member_responsibility"--> BA
 
-    %% --- Agent Directory/Registry ---
-    Directory["<b>📋 Agent Directory/Registry</b><br/>(Agent Capabilities &amp; Metadata)"]:::directory
+  CA   -- "query" --> T1
+  PA   -- "query" --> T2
+  BA   -- "query" --> T3
 
-    %% --- MCP Server ---
-    subgraph MCPServer ["<b>🔧 MCP Health Claims Server</b>"]
-        direction LR
-        Tool1["📊 list_member_claims"]:::tool
-        Tool2["📄 get_claim_detail"]:::tool
-        Tool3["🛡️ get_member_benefits"]:::tool
-        Tool4["💵 estimate_responsibility"]:::tool
-        Tool5["🔍 search_providers"]:::tool
-        Tool6["📍 get_provider_details"]:::tool
-    end
+  T1   -- "result" --> CA
+  T2   -- "result" --> PA
+  T3   -- "result" --> BA
 
-    %% --- A2A Protocol Message Flows ---
-    subgraph Protocol ["<b>🔄 A2A Protocol Communication</b>"]
-        direction LR
-        P1["Request Message<br/>(JSON-RPC 2.0)"]:::protocol
-        P2["Agent Routing<br/>(via Directory)"]:::protocol
-        P3["Response Stream<br/>(Async Results)"]:::protocol
-    end
+  ROUTER -- "stream results"                --> MA
 
-    %% --- Connections ---
-    
-    %% All agents discover through directory
-    MA --> Directory
-    CA --> Directory
-    PA --> Directory
-    BA --> Directory
-    Coordinator --> Directory
-
-    %% All agents can access MCP Server tools
-    MA -.->|Call Tools| MCPServer
-    CA -.->|Call Tools| MCPServer
-    PA -.->|Call Tools| MCPServer
-    BA -.->|Call Tools| MCPServer
-
-    %% Coordinator orchestrates agent-to-agent communication
-    Coordinator -->|A2A Discovery| MA
-    Coordinator -->|A2A Discovery| CA
-    Coordinator -->|A2A Discovery| PA
-    Coordinator -->|A2A Discovery| BA
-
-    %% Agent-to-Agent Communication Examples
-    MA -->|"A2A Request: Check Eligibility<br/>(JSON-RPC)"| CA
-    CA -->|"A2A Response: Eligibility<br/>+ Claims History"| MA
-
-    MA -->|"A2A Request: Find Network<br/>Providers"| PA
-    PA -->|"A2A Response: Provider<br/>List + Details"| MA
-
-    CA -->|"A2A Request: Estimate Costs"| BA
-    BA -->|"A2A Response: Cost<br/>Breakdown"| CA
-
-    %% Protocol layer
-    MA -.->|Uses| Protocol
-    CA -.->|Uses| Protocol
-    PA -.->|Uses| Protocol
-    BA -.->|Uses| Protocol
-
-    %% --- Legend/Explanation ---
-    Legend1["<b>Key Components:</b>"]:::explanation
-    Legend2["• <b>Agents:</b> Blue boxes - Domain-specific agents with specialized roles"]:::explanation
-    Legend3["• <b>A2A Protocol:</b> Orange - JSON-RPC 2.0 based asynchronous messaging"]:::explanation
-    Legend4["• <b>MCP Server:</b> Purple - Unified tool access for all agents"]:::explanation
-    Legend5["• <b>Solid Arrows:</b> A2A messages between agents"]:::explanation
-    Legend6["• <b>Dotted Arrows:</b> Tool invocation on shared MCP server"]:::explanation
-
-    style MCPServer fill:#7c3aed,stroke:#6d28d9,color:#ffffff,stroke-width:2px
-    style Protocol fill:#fef3c7,stroke:#f59e0b,color:#000000,stroke-width:2px
-    style Directory fill:#f3f4f6,stroke:#6b7280,color:#000000,stroke-width:2px
+  classDef srv  fill:#0F2540,color:#ffffff,stroke:#1a4060,stroke-width:1px
+  classDef gw   fill:#f1efe8,color:#2c2c2a,stroke:#5f5e5a,stroke-width:1px
+  classDef tool fill:#e1f5ee,color:#085041,stroke:#0f6e56,stroke-width:1px

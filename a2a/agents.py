@@ -78,18 +78,20 @@ class MemberAssistAgent(HealthcareAgentBase):
         
         self.capabilities = [
             AgentCapability(
+                id="check-eligibility",
                 name="Check Member Eligibility",
                 method="check_eligibility",
                 description="Check if a member is eligible and get their benefits",
-                parameters={"member_id": "string"},
                 tags=["eligibility", "benefits"],
+                examples=["Is member M-1001 eligible?", "Check coverage for M-1002"],
             ),
             AgentCapability(
+                id="find-providers",
                 name="Find Network Providers",
                 method="find_providers",
                 description="Find in-network providers for a given specialty",
-                parameters={"specialty": "string", "zip_code": "string (optional)"},
                 tags=["provider", "network"],
+                examples=["Find a cardiologist near 55401", "Show in-network orthopedic surgeons"],
             ),
         ]
     
@@ -174,29 +176,28 @@ class ClaimsAgent(HealthcareAgentBase):
         
         self.capabilities = [
             AgentCapability(
+                id="check-member-eligibility",
                 name="Check Member Eligibility",
                 method="check_member_eligibility",
                 description="Check member eligibility and get benefits",
-                parameters={"member_id": "string"},
                 tags=["eligibility", "claims"],
+                examples=["Is member M-1001 covered?", "Get benefits for M-1002"],
             ),
             AgentCapability(
+                id="get-claim-details",
                 name="Get Claim Details",
                 method="get_claim_details",
                 description="Get detailed information about a specific claim",
-                parameters={"claim_id": "string"},
                 tags=["claims", "details"],
+                examples=["Show details for claim C-10001", "What is the status of claim C-10002?"],
             ),
             AgentCapability(
+                id="estimate-member-costs",
                 name="Estimate Costs",
                 method="estimate_member_costs",
                 description="Estimate member responsibility for a procedure",
-                parameters={
-                    "member_id": "string",
-                    "procedure_code": "string",
-                    "billed_amount": "float",
-                },
                 tags=["costs", "estimation"],
+                examples=["What will M-1001 owe for procedure 99213?"],
             ),
         ]
     
@@ -317,14 +318,12 @@ class ProviderAdvocateAgent(HealthcareAgentBase):
         
         self.capabilities = [
             AgentCapability(
+                id="search-network-providers",
                 name="Search Network Providers",
                 method="search_network_providers",
                 description="Search for in-network providers by specialty",
-                parameters={
-                    "specialty": "string",
-                    "zip_code": "string (optional)",
-                },
                 tags=["provider", "network", "search"],
+                examples=["Find primary care doctors near 55401", "Search for in-network radiologists"],
             ),
         ]
     
@@ -381,16 +380,12 @@ class BenefitsAgent(HealthcareAgentBase):
         
         self.capabilities = [
             AgentCapability(
+                id="calculate-member-responsibility",
                 name="Calculate Member Responsibility",
                 method="calculate_member_responsibility",
                 description="Calculate member's financial responsibility for a procedure",
-                parameters={
-                    "member_id": "string",
-                    "procedure_code": "string",
-                    "billed_amount": "float",
-                    "network": "string (optional)",
-                },
                 tags=["benefits", "costs", "estimation"],
+                examples=["How much will M-1001 pay for a $500 MRI?"],
             ),
         ]
     

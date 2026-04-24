@@ -9,7 +9,7 @@ from dataclasses import dataclass, field, asdict
 from enum import Enum
 import json
 import uuid
-from datetime import datetime
+from datetime import datetime, timezone
 
 
 class MessageType(str, Enum):
@@ -31,7 +31,7 @@ class A2AMessage:
     result: Optional[dict] = None
     error: Optional[dict] = None
     message_type: MessageType = MessageType.REQUEST
-    timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat() + "Z")
+    timestamp: str = field(default_factory=lambda: datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z"))
     sender: str = ""
     recipient: str = ""
     
@@ -68,7 +68,7 @@ class A2AMessage:
             result=data.get("result"),
             error=data.get("error"),
             message_type=MessageType(data.get("type", "request")),
-            timestamp=data.get("timestamp", datetime.utcnow().isoformat() + "Z"),
+            timestamp=data.get("timestamp", datetime.now(timezone.utc).isoformat(timespec="seconds").replace("+00:00", "Z")),
             sender=data.get("sender", ""),
             recipient=data.get("recipient", ""),
         )
