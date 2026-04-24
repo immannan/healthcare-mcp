@@ -51,7 +51,7 @@ pip install -r requirements.txt
 
 The MCP server exposes healthcare tools to any MCP-compatible client.
 
-### stdio (default — for Claude Desktop and MCP clients)
+### stdio (default — for MCP clients)
 
 ```bash
 python mcp_server/server.py
